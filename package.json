@@ -1,0 +1,49 @@
+{
+  "name": "air_qaulity_app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@base-ui/react": "^1.9.0",
+    "@google/generative-ai": "^0.24.1",
+    "@hookform/resolvers": "^7.0.9",
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.119.2",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "cn": "^0.5.2",
+    "date-fns": "^4.4.0",
+    "drizzle-orm": "^0.45.4",
+    "framer-motion": "^14.14.0",
+    "jose": "^6.2.18",
+    "lucide-react": "^1.79.0",
+    "next": "16.4.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-hook-form": "^7.92.0",
+    "recharts": "^3.11.1",
+    "shadcn": "^4.23.0",
+    "tailwind-merge": "^3.7.1",
+    "tw-animate-css": "^1.4.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/turbopack": "4.3.3",
+    "@types/node": "^20.19.43",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "drizzle-kit": "^0.31.11",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.6",
+    "prettier": "^3.10.1",
+    "tailwindcss": "4.3.3",
+    "typescript": "^5",
+    "vitest": "^3.2.7"
+  }
+}

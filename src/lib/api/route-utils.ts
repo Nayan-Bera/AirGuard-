@@ -130,15 +130,15 @@ export function handleUnexpectedRouteError(
     return createErrorResponse(502, 'UPSTREAM_VALIDATION_ERROR', 'Upstream response failed validation');
   }
 
-  const message = error instanceof Error ? error.message : 'An unexpected error occurred';
+  const message = error instanceof Error ? error.message : '';
 
   if (message.includes('GEMINI_API_KEY')) {
     return createErrorResponse(503, 'SERVICE_UNAVAILABLE', 'AI service is not configured');
   }
 
   if (message.includes('API error:')) {
-    return createErrorResponse(502, 'UPSTREAM_ERROR', message);
+    return createErrorResponse(502, 'UPSTREAM_ERROR', 'An upstream service request failed');
   }
 
-  return createErrorResponse(500, 'INTERNAL_ERROR', message);
+  return createErrorResponse(500, 'INTERNAL_ERROR', 'An unexpected server error occurred');
 }

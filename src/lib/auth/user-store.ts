@@ -1,4 +1,4 @@
-import { eq, lt } from 'drizzle-orm';
+import { eq, lt, sql } from 'drizzle-orm';
 import type { HouseholdPlant, HouseholdProfile, LocationInfo } from '@/types';
 import { getDatabase } from '@/lib/db';
 import { appUserData, profiles, refreshTokens } from '@/db/schema';
@@ -96,7 +96,13 @@ const emptyUserData = (): UserPersistedData => ({
 export async function getUserPersistedData(userId: string): Promise<UserPersistedData> {
   const [row] = await getDatabase().select().from(appUserData)
     .where(eq(appUserData.userId, userId)).limit(1);
-  return row ? { ...emptyUserData(), ...(row.data as Partial<UserPersistedData>), updatedAt: row.updatedAt.toISOString() } : emptyUserData();
+  if (!row) return emptyUserData();
+
+  return {
+    ...emptyUserData(),
+    ...(row.data as Partial<UserPersistedData>),
+    updatedAt: row.updatedAt.toISOString(),
+  };
 }
 
 export async function saveUserPersistedData(
@@ -104,19 +110,35 @@ export async function saveUserPersistedData(
   partial: Partial<UserPersistedData>
 ): Promise<UserPersistedData> {
   const db = getDatabase();
-  const [existingRow] = await db.select().from(appUserData)
-    .where(eq(appUserData.userId, userId)).limit(1);
-  const existing = existingRow
-    ? { ...emptyUserData(), ...(existingRow.data as Partial<UserPersistedData>), updatedAt: existingRow.updatedAt.toISOString() }
-    : emptyUserData();
-  const updated: UserPersistedData = { ...existing, ...partial, updatedAt: new Date().toISOString() };
-  const jsonData = updated as unknown as Record<string, unknown>;
-  await db.insert(appUserData).values({ userId, data: jsonData, updatedAt: new Date(updated.updatedAt) })
+  const now = new Date();
+  const patch = {
+    ...partial,
+    updatedAt: now.toISOString(),
+  } as Record<string, unknown>;
+  const patchJson = JSON.stringify(patch);
+  const [row] = await db.insert(appUserData).values({
+    userId,
+    data: patch,
+    updatedAt: now,
+  })
     .onConflictDoUpdate({
       target: appUserData.userId,
-      set: { data: jsonData, updatedAt: new Date(updated.updatedAt) },
-    });
-  return updated;
+      set: {
+        data: sql`${appUserData.data} || ${patchJson}::jsonb`,
+        updatedAt: now,
+      },
+    })
+    .returning({ data: appUserData.data, updatedAt: appUserData.updatedAt });
+
+  if (!row) {
+    throw new Error('Failed to persist user profile data');
+  }
+
+  return {
+    ...emptyUserData(),
+    ...(row.data as Partial<UserPersistedData>),
+    updatedAt: row.updatedAt.toISOString(),
+  };
 }
 
 export async function deleteUserAccountAndData(userId: string): Promise<void> {

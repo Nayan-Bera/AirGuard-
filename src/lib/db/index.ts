@@ -4,9 +4,12 @@ import * as schema from '@/db/schema';
 import { appConfig } from '@/lib/config/env';
 
 // pg does not bundle TypeScript declarations; @types/pg is not required at runtime.
-const { Pool } = require('pg') as { Pool: new (config: { connectionString: string }) => any };
+type PostgresPool = ReturnType<typeof drizzle<typeof schema>>['$client'];
+const { Pool } = require('pg') as {
+  Pool: new (config: { connectionString: string }) => PostgresPool;
+};
 
-let pool: any;
+let pool: PostgresPool | undefined;
 let database: ReturnType<typeof drizzle<typeof schema>> | undefined;
 
 export function getDatabase() {

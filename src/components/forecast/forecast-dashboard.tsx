@@ -44,6 +44,8 @@ import type {
 } from '@/types';
 
 const LOCATION_STORAGE_KEY = 'uaqa_selected_location';
+type FestivalLookaheadDays = 60 | 90 | 180 | 365;
+const FESTIVAL_LOOKAHEAD_OPTIONS: FestivalLookaheadDays[] = [60, 90, 180, 365];
 
 const DEFAULT_LOCATION: LocationInfo = {
   coordinates: { latitude: 28.6139, longitude: 77.209 },
@@ -63,7 +65,7 @@ export function ForecastDashboard() {
   const searchParams = useSearchParams();
 
   const [location, setLocation] = useState<LocationInfo>(DEFAULT_LOCATION);
-  const [lookaheadDays, setLookaheadDays] = useState<60 | 180 | 365>(90 as 60 | 180 | 365);
+  const [lookaheadDays, setLookaheadDays] = useState<FestivalLookaheadDays>(90);
 
   const [aqForecast, setAqForecast] = useState<AirQualityForecast[]>([]);
   const [weatherForecast, setWeatherForecast] = useState<WeatherForecast[]>([]);
@@ -181,7 +183,7 @@ export function ForecastDashboard() {
     );
   };
 
-  const handleLookaheadChange = async (days: 60 | 180 | 365) => {
+  const handleLookaheadChange = async (days: FestivalLookaheadDays) => {
     setLookaheadDays(days);
     try {
       const res = await fetch(`/api/festivals?days=${days}`);
@@ -541,13 +543,13 @@ export function ForecastDashboard() {
             </div>
 
             <div className="inline-flex items-center rounded-xl border border-border/60 bg-muted/50 p-1">
-              {[60, 180, 365].map((days) => (
+              {FESTIVAL_LOOKAHEAD_OPTIONS.map((days) => (
                 <Button
                   key={days}
                   type="button"
                   size="xs"
                   variant={lookaheadDays === days ? 'default' : 'ghost'}
-                  onClick={() => handleLookaheadChange(days as 60 | 180 | 365)}
+                  onClick={() => handleLookaheadChange(days)}
                   className="rounded-lg px-2.5 text-xs"
                 >
                   Next {days}d

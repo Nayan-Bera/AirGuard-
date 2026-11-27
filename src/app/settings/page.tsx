@@ -77,6 +77,10 @@ const DEFAULT_PREFS: NotificationPreferences = {
   enableForecastAlerts: true,
 };
 
+function isAQIStandard(value: string): value is AQIStandard {
+  return value === 'india_cpcb' || value === 'us_epa' || value === 'european';
+}
+
 export default function SettingsPage() {
   const authUser = useAppSelector((state) => state.auth.user);
   const [userMeta, setUserMeta] = React.useState<UserSettingsMeta>({
@@ -368,7 +372,11 @@ export default function SettingsPage() {
             <Label>Preferred AQI Standard</Label>
             <Select
               value={userMeta.aqiStandard}
-              onValueChange={(v) => setUserMeta((m) => ({ ...m, aqiStandard: v as AQIStandard }))}
+              onValueChange={(value) => {
+                if (value && isAQIStandard(value)) {
+                  setUserMeta((meta) => ({ ...meta, aqiStandard: value }));
+                }
+              }}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select AQI standard">

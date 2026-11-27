@@ -1,52 +1,60 @@
-'use client';
+"use client";
 
-import * as React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import * as React from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Bot,
   MessageSquarePlus,
   RefreshCw,
   Send,
   Lightbulb,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { getAQIColor } from '@/lib/utils/index';
-import { useLocation } from '@/hooks/useLocation';
-import { useAirQuality } from '@/hooks/useAirQuality';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { getAQIColor } from "@/lib/utils/index";
+import { useLocation } from "@/hooks/useLocation";
+import { useAirQuality } from "@/hooks/useAirQuality";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from '@/components/ui/tooltip';
+} from "@/components/ui/tooltip";
 import {
   MessageBubble,
   type AssistantMessage,
-} from '@/components/assistant/message-bubble';
-import { SuggestedQuestions } from '@/components/assistant/suggested-questions';
+} from "@/components/assistant/message-bubble";
+import { SuggestedQuestions } from "@/components/assistant/suggested-questions";
 
 const MAX_MESSAGE_LENGTH = 2000;
 
 function createMessageId(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
     return crypto.randomUUID();
   }
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
 function buildApiHistory(messages: AssistantMessage[]) {
-  const valid = messages.filter((m) => !m.isError && m.content.trim().length > 0);
+  const valid = messages.filter(
+    (m) => !m.isError && m.content.trim().length > 0,
+  );
   // Gemini startChat requires history to begin with a 'user' entry
-  const firstUserIdx = valid.findIndex((m) => m.role === 'user');
+  const firstUserIdx = valid.findIndex((m) => m.role === "user");
   if (firstUserIdx === -1) return [];
-  return valid.slice(firstUserIdx).slice(-50).map((m) => ({
-    role: m.role,
-    content: m.content.slice(0, 4000),
-  }));
+  return valid
+    .slice(firstUserIdx)
+    .slice(-50)
+    .map((m) => ({
+      role: m.role,
+      content: m.content.slice(0, 4000),
+    }));
 }
 
 function TypingIndicator() {
@@ -77,9 +85,9 @@ function TypingIndicator() {
 
 export function ChatInterface() {
   const [messages, setMessages] = React.useState<AssistantMessage[]>([]);
-  const [input, setInput] = React.useState('');
+  const [input, setInput] = React.useState("");
   const [isLoading, setIsLoading] = React.useState(false);
-  const [conversationId, setConversationId] = React.useState<string>('');
+  const [conversationId, setConversationId] = React.useState<string>("");
 
   React.useEffect(() => {
     setConversationId((prev) => prev || createMessageId());
@@ -88,7 +96,7 @@ export function ChatInterface() {
   const { coordinates } = useLocation();
   const { data: airQuality } = useAirQuality(
     coordinates?.latitude,
-    coordinates?.longitude
+    coordinates?.longitude,
   );
 
   const messagesEndRef = React.useRef<HTMLDivElement | null>(null);
@@ -96,7 +104,10 @@ export function ChatInterface() {
   const abortControllerRef = React.useRef<AbortController | null>(null);
 
   React.useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    messagesEndRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "end",
+    });
   }, [messages, isLoading]);
 
   React.useEffect(() => {
@@ -116,21 +127,21 @@ export function ChatInterface() {
 
       const userMessage: AssistantMessage = {
         id: createMessageId(),
-        role: 'user',
+        role: "user",
         content: trimmed,
         timestamp: new Date().toISOString(),
       };
 
       const nextMessages = [...priorMessages, userMessage];
       setMessages(nextMessages);
-      setInput('');
+      setInput("");
       setIsLoading(true);
 
       try {
         const body: {
           message: string;
           conversationId: string;
-          history: Array<{ role: 'user' | 'assistant'; content: string }>;
+          history: Array<{ role: "user" | "assistant"; content: string }>;
           latitude?: number;
           longitude?: number;
         } = {
@@ -144,9 +155,9 @@ export function ChatInterface() {
           body.longitude = coordinates.longitude;
         }
 
-        const response = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
           signal: controller.signal,
         });
@@ -158,43 +169,44 @@ export function ChatInterface() {
             data?.error?.message ||
             data?.error ||
             data?.message ||
-            'Unable to reach the AI assistant right now. Please try again.';
+            "Unable to reach the AI assistant right now. Please try again.";
           throw new Error(
-            typeof errMessage === 'string'
+            typeof errMessage === "string"
               ? errMessage
-              : 'Unable to reach the AI assistant right now.'
+              : "Unable to reach the AI assistant right now.",
           );
         }
 
-        if (data?.conversationId && typeof data.conversationId === 'string') {
+        if (data?.conversationId && typeof data.conversationId === "string") {
           setConversationId(data.conversationId);
         }
 
         const assistantMessage: AssistantMessage = {
           id: createMessageId(),
-          role: 'assistant',
+          role: "assistant",
           content:
-            typeof data?.response === 'string' && data.response.trim().length > 0
+            typeof data?.response === "string" &&
+            data.response.trim().length > 0
               ? data.response
-              : 'I could not generate a response. Please try asking again.',
+              : "I could not generate a response. Please try asking again.",
           timestamp: data?.timestamp || new Date().toISOString(),
         };
 
         setMessages((prev) => [...prev, assistantMessage]);
       } catch (err) {
-        if (err instanceof DOMException && err.name === 'AbortError') {
+        if (err instanceof DOMException && err.name === "AbortError") {
           return;
         }
         const errorText =
           err instanceof Error
             ? err.message
-            : 'Something went wrong while contacting the assistant.';
+            : "Something went wrong while contacting the assistant.";
 
         setMessages((prev) => [
           ...prev,
           {
             id: createMessageId(),
-            role: 'assistant',
+            role: "assistant",
             content: errorText,
             timestamp: new Date().toISOString(),
             isError: true,
@@ -206,7 +218,7 @@ export function ChatInterface() {
         }
       }
     },
-    [conversationId, coordinates, isLoading]
+    [conversationId, coordinates, isLoading],
   );
 
   const handleSubmit = React.useCallback(
@@ -215,17 +227,17 @@ export function ChatInterface() {
       if (!input.trim() || isLoading) return;
       void sendMessageToApi(input, messages);
     },
-    [input, isLoading, messages, sendMessageToApi]
+    [input, isLoading, messages, sendMessageToApi],
   );
 
   const handleKeyDown = React.useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
+      if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         handleSubmit();
       }
     },
-    [handleSubmit]
+    [handleSubmit],
   );
 
   const handleSelectSuggestion = React.useCallback(
@@ -233,28 +245,28 @@ export function ChatInterface() {
       if (isLoading) return;
       void sendMessageToApi(question, messages);
     },
-    [isLoading, messages, sendMessageToApi]
+    [isLoading, messages, sendMessageToApi],
   );
 
   const handleNewConversation = React.useCallback(() => {
     abortControllerRef.current?.abort();
     setIsLoading(false);
     setMessages([]);
-    setInput('');
+    setInput("");
     setConversationId(createMessageId());
     textareaRef.current?.focus();
   }, []);
 
   const lastUserIndex = React.useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i -= 1) {
-      if (messages[i].role === 'user') return i;
+      if (messages[i].role === "user") return i;
     }
     return -1;
   }, [messages]);
 
   const lastAssistantIndex = React.useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i -= 1) {
-      if (messages[i].role === 'assistant') return i;
+      if (messages[i].role === "assistant") return i;
     }
     return -1;
   }, [messages]);
@@ -266,9 +278,10 @@ export function ChatInterface() {
     void sendMessageToApi(lastUserMessage.content, priorMessages);
   }, [isLoading, lastUserIndex, messages, sendMessageToApi]);
 
-  const currentAqi = typeof airQuality?.aqi === 'number' && Number.isFinite(airQuality.aqi)
-    ? airQuality.aqi
-    : null;
+  const currentAqi =
+    typeof airQuality?.aqi === "number" && Number.isFinite(airQuality.aqi)
+      ? airQuality.aqi
+      : null;
   const aqiBadgeStyle = currentAqi !== null ? getAQIColor(currentAqi) : null;
 
   return (
@@ -288,10 +301,10 @@ export function ChatInterface() {
                 <Badge
                   variant="outline"
                   className={cn(
-                    'hidden sm:inline-flex text-[11px] font-medium',
+                    "hidden sm:inline-flex text-[11px] font-medium",
                     aqiBadgeStyle.bg,
                     aqiBadgeStyle.text,
-                    aqiBadgeStyle.border
+                    aqiBadgeStyle.border,
                   )}
                 >
                   AQI {Math.round(currentAqi)} · {aqiBadgeStyle.label}
@@ -307,7 +320,8 @@ export function ChatInterface() {
               )}
             </div>
             <p className="truncate text-xs text-muted-foreground">
-              Real-time AQI, indoor air protection &amp; seasonal health guidance
+              Real-time AQI, indoor air protection &amp; seasonal health
+              guidance
             </p>
           </div>
         </div>
@@ -329,7 +343,7 @@ export function ChatInterface() {
                 }
               >
                 <RefreshCw
-                  className={cn('size-3.5', isLoading && 'animate-spin')}
+                  className={cn("size-3.5", isLoading && "animate-spin")}
                 />
                 <span className="hidden sm:inline">Regenerate</span>
               </TooltipTrigger>
@@ -355,7 +369,9 @@ export function ChatInterface() {
               <MessageSquarePlus className="size-3.5 text-emerald-600 dark:text-emerald-400" />
               <span className="hidden sm:inline">New Chat</span>
             </TooltipTrigger>
-            <TooltipContent side="bottom">Start a new conversation</TooltipContent>
+            <TooltipContent side="bottom">
+              Start a new conversation
+            </TooltipContent>
           </Tooltip>
         </div>
       </div>
@@ -418,7 +434,9 @@ export function ChatInterface() {
                 onRegenerate={handleRegenerate}
               />
             ))}
-            <AnimatePresence>{isLoading && <TypingIndicator />}</AnimatePresence>
+            <AnimatePresence>
+              {isLoading && <TypingIndicator />}
+            </AnimatePresence>
             <div ref={messagesEndRef} className="h-1" />
           </div>
         )}
@@ -475,4 +493,3 @@ export function ChatInterface() {
     </Card>
   );
 }
-

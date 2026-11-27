@@ -24,9 +24,12 @@ export default function LoginPage() {
   const [loading, setLoading] = React.useState(false);
   const [checkingSession, setCheckingSession] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const submittingRef = React.useRef(false);
 
   React.useEffect(() => {
-    if (authStatus === 'authenticated') router.replace('/dashboard');
+    if (authStatus === 'authenticated' && !submittingRef.current) {
+      router.replace('/dashboard');
+    }
     else if (authStatus === 'unauthenticated') setCheckingSession(false);
   }, [authStatus, router]);
 
@@ -34,31 +37,41 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
     setLoading(true);
+    submittingRef.current = true;
 
     try {
       await dispatch(loginUser({ email, password })).unwrap();
 
-      // Restore user's saved home profile, plants, and location into local state
-      const profileRes = await fetch('/api/profile');
-      if (profileRes.ok) {
-        const profileData = await profileRes.json();
-        if (profileData.householdProfile) {
-          writeStoredProfile(profileData.householdProfile);
+      // Restore cached profile details when available, but never hold up a valid sign-in.
+      try {
+        const profileRes = await fetch('/api/profile', {
+          cache: 'no-store',
+          signal: AbortSignal.timeout(3000),
+        });
+        if (profileRes.ok) {
+          const profileData = await profileRes.json();
+          if (profileData.householdProfile) {
+            writeStoredProfile(profileData.householdProfile);
+          }
+          if (Array.isArray(profileData.plants)) {
+            writeStoredPlants(profileData.plants);
+          }
+          if (profileData.location) {
+            localStorage.setItem(LOCATION_STORAGE_KEY, JSON.stringify(profileData.location));
+          }
+          if (Array.isArray(profileData.locations)) {
+            localStorage.setItem('uaqa_saved_locations', JSON.stringify(profileData.locations));
+          }
         }
-        if (Array.isArray(profileData.plants)) {
-          writeStoredPlants(profileData.plants);
-        }
-        if (profileData.location) {
-          localStorage.setItem(LOCATION_STORAGE_KEY, JSON.stringify(profileData.location));
-        }
-        if (Array.isArray(profileData.locations)) {
-          localStorage.setItem('uaqa_saved_locations', JSON.stringify(profileData.locations));
-        }
+      } catch {
+        // The authenticated dashboard can load even if profile restoration is temporarily unavailable.
       }
 
-      router.push('/dashboard');
-      router.refresh();
+      // A document navigation makes the newly issued HttpOnly cookies available to
+      // the server route guard on the first dashboard request.
+      window.location.replace('/dashboard');
     } catch (loginError) {
+      submittingRef.current = false;
       setError(typeof loginError === 'string' ? loginError : 'Unable to sign in right now. Please try again.');
     } finally {
       setLoading(false);

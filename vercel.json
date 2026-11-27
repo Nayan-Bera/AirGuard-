@@ -1,0 +1,35 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "redirects": [
+    {
+      "source": "/dashboard",
+      "missing": [
+        {
+          "type": "cookie",
+          "key": "uaqa_access_token"
+        },
+        {
+          "type": "cookie",
+          "key": "uaqa_refresh_token"
+        }
+      ],
+      "destination": "/login",
+      "permanent": false
+    },
+    {
+      "source": "/dashboard/:path*",
+      "missing": [
+        {
+          "type": "cookie",
+          "key": "uaqa_access_token"
+        },
+        {
+          "type": "cookie",
+          "key": "uaqa_refresh_token"
+        }
+      ],
+      "destination": "/login",
+      "permanent": false
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import {
   ACCESS_TOKEN_COOKIE,
   REFRESH_TOKEN_COOKIE,
@@ -54,11 +54,11 @@ export function clearSessionCookies(response: NextResponse): void {
  * Resolves the current authenticated user from the access token cookie.
  * If the access token is missing/expired, attempts validation via refresh token.
  */
-export async function getAuthenticatedUser(): Promise<{
+export async function getAuthenticatedUser(request?: NextRequest): Promise<{
   user: AuthUser | null;
   refreshed: boolean;
 }> {
-  const { accessToken, refreshToken } = await getTokensFromCookies();
+  const { accessToken, refreshToken } = await getTokensFromCookies(request);
 
   if (accessToken) {
     const payload = await verifyAccessToken(accessToken);

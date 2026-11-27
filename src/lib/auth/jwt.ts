@@ -1,6 +1,7 @@
 import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
 import { randomBytes, scryptSync, timingSafeEqual } from 'crypto';
 import { cookies } from 'next/headers';
+import type { NextRequest } from 'next/server';
 import { appConfig } from '@/lib/config/env';
 
 export const ACCESS_TOKEN_COOKIE = 'uaqa_access_token';
@@ -111,10 +112,16 @@ export function getAuthCookieOptions(maxAgeSeconds: number) {
   };
 }
 
-export async function getTokensFromCookies(): Promise<{
+export async function getTokensFromCookies(request?: NextRequest): Promise<{
   accessToken: string | undefined;
   refreshToken: string | undefined;
 }> {
+  if (request) {
+    return {
+      accessToken: request.cookies.get(ACCESS_TOKEN_COOKIE)?.value,
+      refreshToken: request.cookies.get(REFRESH_TOKEN_COOKIE)?.value,
+    };
+  }
   const cookieStore = await cookies();
   return {
     accessToken: cookieStore.get(ACCESS_TOKEN_COOKIE)?.value,

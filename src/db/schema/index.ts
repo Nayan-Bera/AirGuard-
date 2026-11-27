@@ -1,5 +1,5 @@
 // Database schema for Supabase PostgreSQL with Drizzle ORM
-// Run migrations with: npx drizzle-kit push
+// Generate and apply migrations with: npm run db:generate && npm run db:migrate
 
 import { pgTable, uuid, text, integer, boolean, timestamp, jsonb, real, varchar, pgEnum } from 'drizzle-orm/pg-core';
 
@@ -17,11 +17,27 @@ export const severityEnum = pgEnum('severity', ['info', 'warning', 'critical']);
 export const profiles = pgTable('profiles', {
   id: uuid('id').primaryKey().defaultRandom(),
   authId: text('auth_id').unique().notNull(),
-  email: text('email'),
+  email: text('email').unique(),
   displayName: text('display_name'),
+  passwordHash: text('password_hash'),
   avatarUrl: text('avatar_url'),
   preferredAqiStandard: aqiStandardEnum('preferred_aqi_standard').default('india_cpcb'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Custom JWT refresh sessions used by the app's email/password auth.
+export const refreshTokens = pgTable('refresh_tokens', {
+  jti: text('jti').primaryKey(),
+  userId: uuid('user_id').references(() => profiles.id, { onDelete: 'cascade' }).notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// User profile payload persisted in Postgres; JSONB preserves the existing API shape.
+export const appUserData = pgTable('app_user_data', {
+  userId: uuid('user_id').primaryKey().references(() => profiles.id, { onDelete: 'cascade' }),
+  data: jsonb('data').$type<Record<string, unknown>>().notNull().default({}),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 

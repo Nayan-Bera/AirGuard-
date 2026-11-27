@@ -1,8 +1,8 @@
-# AirGuard AI — Urban Air Quality Assistant
+# AeroPulse AI — Urban Air Quality Assistant
 
 A production-ready GenAI-powered Urban Air Quality Assistant built with **Next.js (App Router)**, **TypeScript**, **Tailwind CSS v4**, **shadcn/ui**, **Framer Motion**, **Recharts**, **Supabase + Drizzle ORM**, and **Google Gemini**.
 
-AirGuard AI combines real-time environmental data, weather conditions, pollution forecasts, festival/seasonal intelligence, and a personalized household profile to generate actionable, grounded environmental guidance.
+AeroPulse AI combines real-time environmental data, weather conditions, pollution forecasts, festival/seasonal intelligence, and a personalized household profile to generate actionable, grounded environmental guidance.
 
 ## Key Features
 
@@ -78,4 +78,4 @@ src/
 
 ## Disclaimer
 
-AirGuard AI provides informational environmental guidance based on external air quality APIs and AI models. It does not replace official public health advisories or professional medical advice.
+AeroPulse AI provides informational environmental guidance based on external air quality APIs and AI models. It does not replace official public health advisories or professional medical advice.

@@ -20,6 +20,7 @@ const locationPayloadSchema = z.object({
   localArea: z.string().optional(),
   timezone: z.string().optional(),
 });
+const locationsPayloadSchema = z.array(locationPayloadSchema).max(20);
 
 const profileSyncSchema = z.object({
   householdProfile: householdProfileSchema.extend({
@@ -36,6 +37,7 @@ const profileSyncSchema = z.object({
     })
   ).optional(),
   location: locationPayloadSchema.nullable().optional(),
+  locations: locationsPayloadSchema.optional(),
 });
 
 export async function GET() {
@@ -43,7 +45,7 @@ export async function GET() {
     const { user } = await getAuthenticatedUser();
     if (!user) {
       return NextResponse.json(
-        { authenticated: false, householdProfile: null, plants: [], location: null },
+        { authenticated: false, householdProfile: null, plants: [], location: null, locations: [] },
         { status: 200 }
       );
     }
@@ -56,6 +58,7 @@ export async function GET() {
         householdProfile: data.householdProfile,
         plants: data.plants,
         location: data.location,
+        locations: data.locations ?? (data.location ? [data.location] : []),
         updatedAt: data.updatedAt,
       },
       { status: 200, headers: { 'Cache-Control': 'no-store' } }
@@ -81,7 +84,7 @@ export async function POST(request: NextRequest) {
     }
 
     const now = new Date().toISOString();
-    const { householdProfile, plants, location } = bodyResult.data;
+    const { householdProfile, plants, location, locations } = bodyResult.data;
 
     const normalizedProfile = householdProfile
       ? {
@@ -131,6 +134,7 @@ export async function POST(request: NextRequest) {
       ...(normalizedProfile !== undefined ? { householdProfile: normalizedProfile } : {}),
       ...(normalizedPlants !== undefined ? { plants: normalizedPlants } : {}),
       ...(location !== undefined ? { location } : {}),
+      ...(locations !== undefined ? { locations } : {}),
     });
 
     return NextResponse.json(

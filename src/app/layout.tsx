@@ -1,8 +1,9 @@
 import type { Metadata, Viewport } from 'next';
+import { Suspense } from 'react';
 import { Geist, Geist_Mono, Inter } from 'next/font/google';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { Navbar } from '@/components/layout/navbar';
-import { Footer } from '@/components/layout/footer';
+import { AppChrome } from '@/components/layout/app-chrome';
+import { AuthSessionBoundary } from '@/components/providers/auth-session-boundary';
 import './globals.css';
 
 const inter = Inter({
@@ -25,8 +26,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: 'AirGuard AI — Smart Air Quality Assistant & Home Protection',
-    template: '%s | AirGuard AI',
+    default: 'AeroPulse AI — Smart Air Quality Assistant & Home Protection',
+    template: '%s | AeroPulse AI',
   },
   description:
     'Hyper-local air quality monitoring, CPCB AQI tracking, weather-aware forecasts, and personalized AI recommendations to protect your home and respiratory health.',
@@ -39,20 +40,20 @@ export const metadata: Metadata = {
     'air purifier',
     'indoor air quality',
     'weather forecast',
-    'AirGuard AI',
+    'AeroPulse AI',
   ],
-  authors: [{ name: 'AirGuard AI' }],
+  authors: [{ name: 'AeroPulse AI' }],
   openGraph: {
-    title: 'AirGuard AI — Smart Air Quality Assistant',
+    title: 'AeroPulse AI — Smart Air Quality Assistant',
     description:
       'Real-time AQI tracking, pollutant breakdown, and personalized AI guidance for healthier indoor and outdoor living.',
     type: 'website',
     locale: 'en_US',
-    siteName: 'AirGuard AI',
+    siteName: 'AeroPulse AI',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'AirGuard AI — Smart Air Quality Assistant',
+    title: 'AeroPulse AI — Smart Air Quality Assistant',
     description:
       'Real-time AQI tracking, pollutant breakdown, and personalized AI guidance for healthier indoor and outdoor living.',
   },
@@ -84,6 +85,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      data-scroll-behavior="smooth"
       suppressHydrationWarning
       className={`${inter.variable} ${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
@@ -92,17 +94,19 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground font-sans selection:bg-emerald-500/20 selection:text-emerald-600 dark:selection:text-emerald-400">
         <TooltipProvider delay={150}>
-          <div className="relative flex min-h-screen flex-col">
-            <a
-              href="#main-content"
-              className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-emerald-600 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white focus:shadow-lg"
-            >
-              Skip to main content
-            </a>
-            <Navbar />
-            <main id="main-content" className="flex-1">{children}</main>
-            <Footer />
-          </div>
+          <Suspense fallback={<div className="min-h-screen bg-background" />}>
+            <AuthSessionBoundary>
+              <div className="relative flex min-h-screen flex-col">
+                <a
+                  href="#main-content"
+                  className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-emerald-600 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white focus:shadow-lg"
+                >
+                  Skip to main content
+                </a>
+                <AppChrome>{children}</AppChrome>
+              </div>
+            </AuthSessionBoundary>
+          </Suspense>
         </TooltipProvider>
       </body>
     </html>

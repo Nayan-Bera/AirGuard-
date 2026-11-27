@@ -15,15 +15,26 @@ import {
   readStoredPlants,
   readStoredProfile,
 } from '@/components/home-profile/home-profile-utils';
+import type { LocationInfo } from '@/types';
+import { registerUser } from '@/lib/store/auth-slice';
+import { useAppDispatch, useAppSelector } from '@/lib/store/hooks';
 
 export default function RegisterPage() {
   const router = useRouter();
+  const dispatch = useAppDispatch();
+  const authStatus = useAppSelector((state) => state.auth.status);
   const [name, setName] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [showPassword, setShowPassword] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
+  const [checkingSession, setCheckingSession] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (authStatus === 'authenticated') router.replace('/dashboard');
+    else if (authStatus === 'unauthenticated') setCheckingSession(false);
+  }, [authStatus, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -31,24 +42,22 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError(data?.error?.message || 'Unable to create account.');
-        return;
-      }
+      await dispatch(registerUser({ name, email, password })).unwrap();
 
       // Migrate any existing local home profile, plants, and location to the new user account
       const localProfile = readStoredProfile();
       const localPlants = readStoredPlants();
       const localLocation = readStoredLocation();
+      let localLocations: LocationInfo[] = [];
+      try {
+        const rawLocations = localStorage.getItem('uaqa_saved_locations');
+        if (rawLocations) {
+          const parsed: unknown = JSON.parse(rawLocations);
+          if (Array.isArray(parsed)) localLocations = parsed as LocationInfo[];
+        }
+      } catch { /* Ignore malformed local saved locations */ }
 
-      if (localProfile || localPlants.length > 0 || localLocation) {
+      if (localProfile || localPlants.length > 0 || localLocation || localLocations.length > 0) {
         await fetch('/api/profile', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -56,17 +65,28 @@ export default function RegisterPage() {
             householdProfile: localProfile,
             plants: localPlants,
             location: localLocation,
+            locations: localLocations.length > 0 ? localLocations : localLocation ? [localLocation] : [],
           }),
         }).catch(() => {});
       }
 
-      router.push('/home');
+      router.push('/dashboard');
       router.refresh();
-    } catch {
-      setError('Unable to register right now. Please try again.');
+    } catch (registrationError) {
+      setError(typeof registrationError === 'string' ? registrationError : 'Unable to register right now. Please try again.');
     } finally {
       setLoading(false);
     }
+  }
+
+  if (checkingSession) {
+    return (
+      <div className="container mx-auto flex min-h-[calc(100vh-10rem)] items-center justify-center px-4">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" /> Checking your session…
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -77,13 +97,13 @@ export default function RegisterPage() {
         transition={{ duration: 0.35 }}
         className="w-full max-w-md"
       >
-        <Card className="glass-card border-border/60 shadow-xl">
+        <Card className="!border-white/10 !bg-[#081525]/95 !text-slate-50 shadow-[0_24px_80px_-28px_rgba(0,0,0,0.9)] backdrop-blur-xl">
           <CardHeader className="space-y-2 text-center">
             <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-cyan-500 text-white shadow-md">
               <Wind className="size-6" />
             </div>
             <CardTitle className="text-2xl font-bold">Create your account</CardTitle>
-            <CardDescription>
+            <CardDescription className="text-slate-300">
               Save your household profile, indoor plants, and location securely across sessions.
             </CardDescription>
           </CardHeader>
@@ -97,7 +117,7 @@ export default function RegisterPage() {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
+                <Label htmlFor="name" className="text-slate-200">Full Name</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -106,7 +126,7 @@ export default function RegisterPage() {
                     placeholder="Aarav Sharma"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="pl-9"
+                    className="border-white/15 bg-white/[0.05] pl-9 text-slate-100 placeholder:text-slate-500 focus-visible:ring-emerald-400"
                     minLength={2}
                     required
                   />
@@ -114,7 +134,7 @@ export default function RegisterPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email" className="text-slate-200">Email</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -123,14 +143,14 @@ export default function RegisterPage() {
                     placeholder="you@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="pl-9"
+                    className="border-white/15 bg-white/[0.05] pl-9 text-slate-100 placeholder:text-slate-500 focus-visible:ring-emerald-400"
                     required
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" className="text-slate-200">Password</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -140,7 +160,7 @@ export default function RegisterPage() {
                     minLength={6}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="pl-9 pr-10"
+                    className="border-white/15 bg-white/[0.05] pl-9 pr-10 text-slate-100 placeholder:text-slate-500 focus-visible:ring-emerald-400"
                     required
                   />
                   <button

@@ -4,12 +4,16 @@ import { clearSessionCookies } from '@/lib/auth/session';
 import { revokeRefreshToken } from '@/lib/auth/user-store';
 
 export async function POST() {
-  const { refreshToken } = await getTokensFromCookies();
-  if (refreshToken) {
-    const payload = await verifyRefreshToken(refreshToken);
-    if (payload?.jti) {
-      await revokeRefreshToken(payload.jti);
+  try {
+    const { refreshToken } = await getTokensFromCookies();
+    if (refreshToken) {
+      const payload = await verifyRefreshToken(refreshToken);
+      if (payload?.jti) {
+        await revokeRefreshToken(payload.jti);
+      }
     }
+  } catch {
+    // Always clear browser cookies even if refresh-token revocation fails.
   }
 
   const response = NextResponse.json({ loggedOut: true }, { status: 200 });

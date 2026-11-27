@@ -15,6 +15,7 @@ import {
   Navigation,
   Settings,
   Shield,
+  Star,
   Trash2,
   User,
 } from 'lucide-react';
@@ -45,10 +46,18 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { clearStoredHomeData, readStoredLocation, readStoredProfile, writeStoredLocation } from '@/components/home-profile/home-profile-utils';
+import { LocationSearch } from '@/components/dashboard/location-search';
+import {
+  BROWSER_ALERTS_ENABLED_KEY,
+  BROWSER_ALERTS_LAST_CHECK_KEY,
+  showBrowserAlertNotifications,
+} from '@/lib/browser-notifications';
 import type { AQIStandard, LocationInfo, NotificationPreferences, UserNotification } from '@/types';
+import { useAppSelector } from '@/lib/store/hooks';
 
 const PREFS_STORAGE_KEY = 'uaqa_notification_preferences';
 const PROFILE_META_STORAGE_KEY = 'uaqa_user_settings';
+const SAVED_LOCATIONS_STORAGE_KEY = 'uaqa_saved_locations';
 
 interface UserSettingsMeta {
   displayName: string;
@@ -69,6 +78,7 @@ const DEFAULT_PREFS: NotificationPreferences = {
 };
 
 export default function SettingsPage() {
+  const authUser = useAppSelector((state) => state.auth.user);
   const [userMeta, setUserMeta] = React.useState<UserSettingsMeta>({
     displayName: '',
     email: '',
@@ -81,6 +91,12 @@ export default function SettingsPage() {
   const [checkingAlerts, setCheckingAlerts] = React.useState(false);
   const [isLocating, setIsLocating] = React.useState(false);
   const [locationError, setLocationError] = React.useState<string | null>(null);
+  const [savedLocations, setSavedLocations] = React.useState<LocationInfo[]>([]);
+  const [locationsSaving, setLocationsSaving] = React.useState(false);
+  const [locationsError, setLocationsError] = React.useState<string | null>(null);
+  const [browserAlertsEnabled, setBrowserAlertsEnabled] = React.useState(false);
+  const [browserPermission, setBrowserPermission] = React.useState<NotificationPermission | 'unsupported'>('default');
+  const [browserAlertError, setBrowserAlertError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     try {
@@ -96,24 +112,100 @@ export default function SettingsPage() {
         const profile = readStoredProfile();
         if (profile?.city) setLocationCity(profile.city);
       }
+      const saved = localStorage.getItem(SAVED_LOCATIONS_STORAGE_KEY);
+      if (saved) setSavedLocations(JSON.parse(saved));
+      setBrowserAlertsEnabled(localStorage.getItem(BROWSER_ALERTS_ENABLED_KEY) === 'true');
+      setBrowserPermission('Notification' in window ? Notification.permission : 'unsupported');
     } catch {
       // Ignore storage errors
     }
   }, []);
 
   React.useEffect(() => {
-    fetch('/api/auth/me')
+    if (!authUser) return;
+    setUserMeta((current) => ({
+      ...current,
+      displayName: current.displayName || authUser.name || '',
+      email: current.email || authUser.email || '',
+    }));
+  }, [authUser]);
+
+  React.useEffect(() => {
+    fetch('/api/profile', { cache: 'no-store' })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (!data?.authenticated || !data.user) return;
-        setUserMeta((current) => ({
-          ...current,
-          displayName: current.displayName || data.user.name || '',
-          email: current.email || data.user.email || '',
-        }));
+        if (!data?.authenticated) return;
+        const locations = Array.isArray(data.locations) ? data.locations : data.location ? [data.location] : [];
+        setSavedLocations(locations);
+        localStorage.setItem(SAVED_LOCATIONS_STORAGE_KEY, JSON.stringify(locations));
       })
       .catch(() => {});
   }, []);
+
+  async function persistLocations(locations: LocationInfo[]) {
+    if (locations.length > 20) {
+      setLocationsError('You can save up to 20 locations.');
+      return;
+    }
+    setSavedLocations(locations);
+    setLocationsError(null);
+    try { localStorage.setItem(SAVED_LOCATIONS_STORAGE_KEY, JSON.stringify(locations)); } catch { /* Ignore storage errors */ }
+    setLocationsSaving(true);
+    try {
+      const response = await fetch('/api/profile', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ locations }),
+      });
+      if (!response.ok) throw new Error('Could not sync saved locations to your account.');
+      await response.json();
+    } catch (error) {
+      setLocationsError(error instanceof Error ? error.message : 'Could not save locations.');
+    } finally { setLocationsSaving(false); }
+  }
+
+  function addSavedLocation(location: LocationInfo) {
+    if (savedLocations.some((item) => item.coordinates.latitude === location.coordinates.latitude && item.coordinates.longitude === location.coordinates.longitude)) {
+      setLocationsError('That location is already saved.');
+      return;
+    }
+    void persistLocations([...savedLocations, location]);
+  }
+
+  function activateSavedLocation(location: LocationInfo) {
+    writeStoredLocation(location);
+    setLocationCity([location.city, location.state].filter(Boolean).join(', '));
+  }
+
+  async function setBrowserAlerts(enabled: boolean) {
+    setBrowserAlertError(null);
+    if (!enabled) {
+      setBrowserAlertsEnabled(false);
+      localStorage.setItem(BROWSER_ALERTS_ENABLED_KEY, 'false');
+      return;
+    }
+    if (!('Notification' in window)) {
+      setBrowserPermission('unsupported');
+      setBrowserAlertError('This browser does not support desktop notifications.');
+      return;
+    }
+
+    const permission = Notification.permission === 'default'
+      ? await Notification.requestPermission()
+      : Notification.permission;
+    setBrowserPermission(permission);
+    if (permission !== 'granted') {
+      setBrowserAlertsEnabled(false);
+      localStorage.setItem(BROWSER_ALERTS_ENABLED_KEY, 'false');
+      setBrowserAlertError(permission === 'denied'
+        ? 'Notifications are blocked for this site in Chrome. Allow them in the site permissions, then try again.'
+        : 'Notification permission was not granted.');
+      return;
+    }
+
+    setBrowserAlertsEnabled(true);
+    localStorage.setItem(BROWSER_ALERTS_ENABLED_KEY, 'true');
+    localStorage.removeItem(BROWSER_ALERTS_LAST_CHECK_KEY);
+  }
 
   async function useCurrentLocation() {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
@@ -144,6 +236,9 @@ export default function SettingsPage() {
         : { coordinates, city: 'Current location', state: '', country: '' };
       writeStoredLocation(location);
       setLocationCity([location.city, location.state].filter(Boolean).join(', '));
+      if (!savedLocations.some((item) => item.coordinates.latitude === coordinates.latitude && item.coordinates.longitude === coordinates.longitude)) {
+        void persistLocations([...savedLocations, location]);
+      }
     } catch {
       setLocationError('We could not access your location. Check browser permission or choose a city from the Dashboard.');
     } finally {
@@ -179,6 +274,8 @@ export default function SettingsPage() {
       if (res.ok) {
         const data = await res.json();
         setActiveAlerts(data.notifications ?? []);
+        showBrowserAlertNotifications(data.notifications ?? []);
+        localStorage.setItem(BROWSER_ALERTS_LAST_CHECK_KEY, String(Date.now()));
       }
     } finally {
       setCheckingAlerts(false);
@@ -191,6 +288,7 @@ export default function SettingsPage() {
       localStorage.removeItem(PREFS_STORAGE_KEY);
       localStorage.removeItem(PROFILE_META_STORAGE_KEY);
       localStorage.removeItem('uaqa_selected_location');
+      localStorage.removeItem(SAVED_LOCATIONS_STORAGE_KEY);
       localStorage.removeItem('uaqa_chat_history');
     } catch {
       // Ignore
@@ -199,6 +297,7 @@ export default function SettingsPage() {
     setUserMeta({ displayName: '', email: '', aqiStandard: 'india_cpcb' });
     setPrefs(DEFAULT_PREFS);
     setLocationCity('Not set');
+    setSavedLocations([]);
     setActiveAlerts([]);
   }
 
@@ -327,6 +426,37 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
+      <Card className="glass-card border-border/60">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg"><MapPin className="size-5 text-emerald-500" />Saved Home Locations</CardTitle>
+          <CardDescription>Save places such as home, work, or another household, then switch the dashboard location anytime.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <LocationSearch
+            currentLocation={readStoredLocation()}
+            onSelectLocation={addSavedLocation}
+            trigger={<Button variant="outline"><MapPin className="mr-2 size-4" />Add a location</Button>}
+          />
+          {locationsSaving && <p className="text-xs text-muted-foreground">Saving locations…</p>}
+          {locationsError && <p className="text-sm text-destructive">{locationsError}</p>}
+          {savedLocations.length === 0 ? <p className="text-sm text-muted-foreground">No saved locations yet.</p> : (
+            <div className="space-y-2">
+              {savedLocations.map((location, index) => {
+                const selected = readStoredLocation();
+                const active = selected?.coordinates.latitude === location.coordinates.latitude && selected?.coordinates.longitude === location.coordinates.longitude;
+                return <div key={`${location.city}-${location.coordinates.latitude}-${location.coordinates.longitude}`} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/60 p-3">
+                  <div><p className="font-medium">{location.city}{location.state ? `, ${location.state}` : ''}{active && <span className="ml-2 text-xs text-emerald-600">Active</span>}</p><p className="text-xs text-muted-foreground">{location.country || 'Saved location'}</p></div>
+                  <div className="flex gap-2">
+                    {!active && <Button size="sm" variant="outline" onClick={() => activateSavedLocation(location)}><Star className="mr-1 size-3.5" />Use</Button>}
+                    <Button size="sm" variant="ghost" aria-label={`Remove ${location.city}`} onClick={() => void persistLocations(savedLocations.filter((_, i) => i !== index))}><Trash2 className="size-4" /></Button>
+                  </div>
+                </div>;
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Notification Preferences */}
       <Card className="glass-card border-border/60">
         <CardHeader>
@@ -346,6 +476,25 @@ export default function SettingsPage() {
           </div>
         </CardHeader>
         <CardContent className="space-y-5">
+          <div className="flex items-center justify-between gap-4 rounded-xl border border-border/60 bg-muted/20 p-3">
+            <div>
+              <p className="text-sm font-medium">Chrome desktop notifications</p>
+              <p className="text-xs text-muted-foreground">
+                Get a browser notification when an air quality alert is detected while AeroPulse is open.
+                {browserPermission === 'granted' && ' Permission granted.'}
+                {browserPermission === 'denied' && ' Blocked in Chrome site settings.'}
+                {browserPermission === 'unsupported' && ' Not supported by this browser.'}
+              </p>
+            </div>
+            <Switch
+              checked={browserAlertsEnabled}
+              disabled={browserPermission === 'unsupported'}
+              onCheckedChange={(enabled) => void setBrowserAlerts(enabled)}
+              aria-label="Enable Chrome desktop notifications"
+            />
+          </div>
+          {browserAlertError && <p className="text-sm text-destructive">{browserAlertError}</p>}
+
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium">AQI Threshold Alerts</p>
@@ -476,7 +625,7 @@ export default function SettingsPage() {
           <Info className="mt-0.5 size-4 shrink-0 text-emerald-500" />
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-foreground">AirGuard AI — Urban Air Quality Assistant</span>
+              <span className="font-semibold text-foreground">AeroPulse AI — Urban Air Quality Assistant</span>
               <Badge variant="outline" className="text-[10px]">v1.0.0</Badge>
             </div>
             <p>

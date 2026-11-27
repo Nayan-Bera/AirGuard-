@@ -14,7 +14,7 @@ const envSchema = z.object({
   GEMINI_API_KEY: z.string().optional(),
   GEMINI_MODEL: z.string().default('gemini-2.0-flash'),
 
-  // Supabase Database (optional in local fallback mode)
+    // PostgreSQL database
   NEXT_PUBLIC_SUPABASE_URL: z.string().optional(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
@@ -73,9 +73,7 @@ export const appConfig = {
     supabaseAnonKey: raw.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
     supabaseServiceRoleKey: raw.SUPABASE_SERVICE_ROLE_KEY || '',
     databaseUrl: raw.DATABASE_URL || '',
-    isConfigured: Boolean(
-      raw.NEXT_PUBLIC_SUPABASE_URL && raw.SUPABASE_SERVICE_ROLE_KEY
-    ),
+    isConfigured: Boolean(raw.DATABASE_URL),
   },
   apis: {
     openMeteoAirQualityUrl: raw.OPEN_METEO_AIR_QUALITY_URL,

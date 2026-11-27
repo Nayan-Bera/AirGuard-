@@ -221,7 +221,7 @@ export function HomeDashboard() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">My Home & Environment</h1>
             <p className="text-sm text-muted-foreground">
-              Tell AirGuard AI about your living space for tailored indoor air quality guidance.
+              Tell AeroPulse AI about your living space for tailored indoor air quality guidance.
             </p>
           </div>
         </div>

@@ -10,8 +10,6 @@ import {
   CloudSun,
   Home,
   LayoutDashboard,
-  Leaf,
-  LogIn,
   LogOut,
   Menu,
   Moon,
@@ -19,7 +17,6 @@ import {
   Lightbulb,
   Sun,
   User,
-  Wind,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getAQIColor, getAQIGradient } from '@/lib/utils/index';
@@ -46,6 +43,9 @@ import {
 } from '@/components/ui/sheet';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { readStoredLocation } from '@/components/home-profile/home-profile-utils';
+import { BrandMark } from '@/components/layout/brand-mark';
+import { logoutUser } from '@/lib/store/auth-slice';
+import { useAppDispatch, useAppSelector } from '@/lib/store/hooks';
 
 export interface NavbarProps {
   aqi?: number | null;
@@ -141,23 +141,15 @@ function AQIMiniBadge({ aqi }: { aqi: number | null | undefined }) {
 export function Navbar({ aqi = null }: NavbarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const dispatch = useAppDispatch();
+  const authUser = useAppSelector((state) => state.auth.user);
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [isDark, setIsDark] = React.useState<boolean>(false);
-  const [authUser, setAuthUser] = React.useState<{ id: string; email: string; name: string } | null>(null);
   const [liveAqi, setLiveAqi] = React.useState<number | null>(null);
 
   React.useEffect(() => {
     setIsDark(document.documentElement.classList.contains('dark'));
   }, []);
-
-  React.useEffect(() => {
-    fetch('/api/auth/me')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        setAuthUser(data?.authenticated && data?.user ? data.user : null);
-      })
-      .catch(() => {});
-  }, [pathname]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -195,11 +187,10 @@ export function Navbar({ aqi = null }: NavbarProps) {
   }, [pathname]);
 
   const handleLogout = React.useCallback(async () => {
-    await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
-    setAuthUser(null);
-    router.push('/login');
+    await dispatch(logoutUser());
+    router.replace('/');
     router.refresh();
-  }, [router]);
+  }, [dispatch, router]);
 
   const toggleTheme = React.useCallback(() => {
     setIsDark((prev) => {
@@ -219,6 +210,8 @@ export function Navbar({ aqi = null }: NavbarProps) {
     [pathname]
   );
   const displayedAqi = typeof aqi === 'number' && Number.isFinite(aqi) ? aqi : liveAqi;
+
+  if (!authUser) return null;
 
   return (
     <motion.header
@@ -253,13 +246,7 @@ export function Navbar({ aqi = null }: NavbarProps) {
             >
               <SheetHeader className="border-b border-border/50 pb-4">
                 <SheetTitle className="flex items-center gap-2.5">
-                  <span className="relative flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-sm shadow-emerald-500/25">
-                    <Wind className="size-4.5" />
-                    <Leaf className="absolute -right-0.5 -bottom-0.5 size-3 rounded-full bg-background p-0.5 text-emerald-500" />
-                  </span>
-                  <span className="bg-gradient-to-r from-foreground to-foreground/75 bg-clip-text text-lg font-bold tracking-tight text-transparent">
-                    AirGuard AI
-                  </span>
+                  <BrandMark iconClassName="size-9 rounded-xl" nameClassName="bg-gradient-to-r from-foreground to-foreground/75 bg-clip-text text-lg text-transparent" />
                 </SheetTitle>
                 <SheetDescription className="text-xs">
                   Hyper-local air quality &amp; smart home assistant
@@ -336,12 +323,12 @@ export function Navbar({ aqi = null }: NavbarProps) {
                     size="sm"
                     onClick={() => {
                       setMobileOpen(false);
-                      router.push('/login');
+                      void handleLogout();
                     }}
                     className="gap-1.5 rounded-xl"
                   >
-                    <LogIn className="size-4" />
-                    <span>Sign in</span>
+                    <LogOut className="size-4" />
+                    <span>Sign out</span>
                   </Button>
                 </div>
               </SheetFooter>
@@ -349,22 +336,12 @@ export function Navbar({ aqi = null }: NavbarProps) {
           </Sheet>
 
           <Link
-            href="/"
+            href="/dashboard"
             className="group flex items-center gap-2.5 rounded-xl py-1 pr-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <motion.span
-              whileHover={{ rotate: [0, -6, 6, 0], scale: 1.05 }}
-              transition={{ duration: 0.4 }}
-              className="relative flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 text-white shadow-md shadow-emerald-500/20"
-            >
-              <Wind className="size-4.5" />
-              <Leaf className="absolute -right-1 -bottom-1 size-3.5 rounded-full bg-background p-0.5 text-emerald-500 shadow-xs" />
+            <motion.span whileHover={{ scale: 1.04 }} transition={{ duration: 0.3 }}>
+              <BrandMark iconClassName="size-9 rounded-xl" nameClassName="bg-gradient-to-r from-foreground via-foreground to-emerald-600 bg-clip-text text-base text-transparent sm:text-lg" />
             </motion.span>
-            <div className="flex flex-col">
-              <span className="bg-gradient-to-r from-foreground via-foreground to-emerald-600 dark:to-emerald-400 bg-clip-text text-base font-bold tracking-tight text-transparent sm:text-lg">
-                AirGuard AI
-              </span>
-            </div>
           </Link>
         </div>
 
@@ -464,10 +441,10 @@ export function Navbar({ aqi = null }: NavbarProps) {
                 <DropdownMenuLabel className="px-2 py-1.5">
                   <div className="flex flex-col space-y-0.5">
                     <p className="text-sm font-semibold text-foreground">
-                      {authUser ? authUser.name : 'Guest Explorer'}
+                      {authUser.name}
                     </p>
                     <p className="text-xs font-normal text-muted-foreground truncate">
-                      {authUser ? authUser.email : 'Sign in to sync your home profile'}
+                      {authUser.email}
                     </p>
                   </div>
                 </DropdownMenuLabel>
@@ -510,23 +487,13 @@ export function Navbar({ aqi = null }: NavbarProps) {
 
               <DropdownMenuSeparator />
 
-              {authUser ? (
-                <DropdownMenuItem
-                  onClick={handleLogout}
-                  className="cursor-pointer rounded-lg px-2 py-1.5 text-destructive focus:text-destructive"
-                >
-                  <LogOut className="size-4" />
-                  <span>Sign out</span>
-                </DropdownMenuItem>
-              ) : (
-                <DropdownMenuItem
-                  onClick={() => router.push('/login')}
-                  className="cursor-pointer rounded-lg px-2 py-1.5 text-emerald-600 focus:text-emerald-600 dark:text-emerald-400 dark:focus:text-emerald-400"
-                >
-                  <LogIn className="size-4" />
-                  <span>Sign in / Register</span>
-                </DropdownMenuItem>
-              )}
+              <DropdownMenuItem
+                onClick={handleLogout}
+                className="cursor-pointer rounded-lg px-2 py-1.5 text-destructive focus:text-destructive"
+              >
+                <LogOut className="size-4" />
+                <span>Sign out</span>
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { Leaf, ShieldAlert, Wind } from 'lucide-react';
+import { ShieldAlert } from 'lucide-react';
+import { BrandMark } from '@/components/layout/brand-mark';
 
 const FOOTER_LINKS = [
   { label: 'Dashboard', href: '/dashboard' },
@@ -18,16 +19,10 @@ export function Footer() {
           {/* Brand & Credits */}
           <div className="space-y-3 md:col-span-5">
             <Link
-              href="/"
-              className="inline-flex items-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg"
+              href="/dashboard"
+              className="inline-flex rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <span className="relative flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-sm">
-                <Wind className="size-4" />
-                <Leaf className="absolute -right-0.5 -bottom-0.5 size-3 rounded-full bg-background p-0.5 text-emerald-500" />
-              </span>
-              <span className="text-base font-bold tracking-tight text-foreground">
-                AirGuard AI
-              </span>
+              <BrandMark iconClassName="size-8 rounded-lg" nameClassName="text-base text-foreground" />
             </Link>
             <p className="max-w-sm text-xs leading-relaxed text-muted-foreground">
               Hyper-local air quality intelligence, India CPCB AQI tracking, and
@@ -99,7 +94,7 @@ export function Footer() {
         </div>
 
         <div className="mt-8 flex flex-col items-center justify-between gap-2 border-t border-border/40 pt-5 text-xs text-muted-foreground sm:flex-row">
-          <p>&copy; 2026 AirGuard AI. Built for cleaner indoor &amp; outdoor living.</p>
+          <p>&copy; 2026 AeroPulse AI. Built for cleaner indoor &amp; outdoor living.</p>
           <p className="text-muted-foreground/75">
             India CPCB AQI Standard · Real-time Refresh
           </p>

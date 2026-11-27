@@ -1,23 +1,27 @@
-// Drizzle ORM + Supabase PostgreSQL client
-// Note: Gracefully returns null if Supabase is not configured so local dev works without a live DB.
-
-import { createClient } from '@supabase/supabase-js';
+// PostgreSQL is the source of truth for server-side account and profile data.
+import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from '@/db/schema';
 import { appConfig } from '@/lib/config/env';
 
-export function isDatabaseConfigured(): boolean {
-  return appConfig.db.isConfigured;
+// pg does not bundle TypeScript declarations; @types/pg is not required at runtime.
+const { Pool } = require('pg') as { Pool: new (config: { connectionString: string }) => any };
+
+let pool: any;
+let database: ReturnType<typeof drizzle<typeof schema>> | undefined;
+
+export function getDatabase() {
+  if (!appConfig.db.databaseUrl) {
+    throw new Error('DATABASE_URL is required for server-side data storage.');
+  }
+  if (!pool) {
+    pool = new Pool({ connectionString: appConfig.db.databaseUrl });
+    database = drizzle(pool, { schema });
+  }
+  return database!;
 }
 
-export function getSupabaseAdmin() {
-  if (!appConfig.db.isConfigured) return null;
-
-  return createClient(appConfig.db.supabaseUrl, appConfig.db.supabaseServiceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  });
+export function isDatabaseConfigured(): boolean {
+  return Boolean(appConfig.db.databaseUrl);
 }
 
 export { schema };

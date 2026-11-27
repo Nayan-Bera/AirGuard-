@@ -11,14 +11,24 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { writeStoredPlants, writeStoredProfile, LOCATION_STORAGE_KEY } from '@/components/home-profile/home-profile-utils';
+import { loginUser } from '@/lib/store/auth-slice';
+import { useAppDispatch, useAppSelector } from '@/lib/store/hooks';
 
 export default function LoginPage() {
   const router = useRouter();
+  const dispatch = useAppDispatch();
+  const authStatus = useAppSelector((state) => state.auth.status);
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [showPassword, setShowPassword] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
+  const [checkingSession, setCheckingSession] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (authStatus === 'authenticated') router.replace('/dashboard');
+    else if (authStatus === 'unauthenticated') setCheckingSession(false);
+  }, [authStatus, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -26,17 +36,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError(data?.error?.message || 'Invalid email or password.');
-        return;
-      }
+      await dispatch(loginUser({ email, password })).unwrap();
 
       // Restore user's saved home profile, plants, and location into local state
       const profileRes = await fetch('/api/profile');
@@ -51,15 +51,28 @@ export default function LoginPage() {
         if (profileData.location) {
           localStorage.setItem(LOCATION_STORAGE_KEY, JSON.stringify(profileData.location));
         }
+        if (Array.isArray(profileData.locations)) {
+          localStorage.setItem('uaqa_saved_locations', JSON.stringify(profileData.locations));
+        }
       }
 
       router.push('/dashboard');
       router.refresh();
-    } catch {
-      setError('Unable to sign in right now. Please try again.');
+    } catch (loginError) {
+      setError(typeof loginError === 'string' ? loginError : 'Unable to sign in right now. Please try again.');
     } finally {
       setLoading(false);
     }
+  }
+
+  if (checkingSession) {
+    return (
+      <div className="container mx-auto flex min-h-[calc(100vh-10rem)] items-center justify-center px-4">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" /> Checking your session…
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -70,13 +83,13 @@ export default function LoginPage() {
         transition={{ duration: 0.35 }}
         className="w-full max-w-md"
       >
-        <Card className="glass-card border-border/60 shadow-xl">
+        <Card className="!border-white/10 !bg-[#081525]/95 !text-slate-50 shadow-[0_24px_80px_-28px_rgba(0,0,0,0.9)] backdrop-blur-xl">
           <CardHeader className="space-y-2 text-center">
             <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-cyan-500 text-white shadow-md">
               <Wind className="size-6" />
             </div>
             <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
-            <CardDescription>
+            <CardDescription className="text-slate-300">
               Sign in with your account to restore your saved home profile, plants, and location.
             </CardDescription>
           </CardHeader>
@@ -90,7 +103,7 @@ export default function LoginPage() {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email" className="text-slate-200">Email</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -99,14 +112,14 @@ export default function LoginPage() {
                     placeholder="you@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="pl-9"
+                    className="border-white/15 bg-white/[0.05] pl-9 text-slate-100 placeholder:text-slate-500 focus-visible:ring-emerald-400"
                     required
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" className="text-slate-200">Password</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -115,7 +128,7 @@ export default function LoginPage() {
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="pl-9 pr-10"
+                    className="border-white/15 bg-white/[0.05] pl-9 pr-10 text-slate-100 placeholder:text-slate-500 focus-visible:ring-emerald-400"
                     required
                   />
                   <button

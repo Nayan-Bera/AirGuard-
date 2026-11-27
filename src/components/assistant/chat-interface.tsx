@@ -295,7 +295,7 @@ export function ChatInterface() {
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h1 className="truncate text-sm font-semibold text-foreground sm:text-base">
-                AirGuard AI Assistant
+                AeroPulse AI Assistant
               </h1>
               {currentAqi !== null && aqiBadgeStyle ? (
                 <Badge

@@ -4,7 +4,7 @@ import { ChatInterface } from '@/components/assistant/chat-interface';
 export const metadata: Metadata = {
   title: 'AI Air Quality Assistant',
   description:
-    'Chat with AirGuard AI for real-time CPCB AQI insights, indoor ventilation advice, outdoor safety tips, and festival smog preparation.',
+    'Chat with AeroPulse AI for real-time CPCB AQI insights, indoor ventilation advice, outdoor safety tips, and festival smog preparation.',
 };
 
 export default function AssistantPage() {

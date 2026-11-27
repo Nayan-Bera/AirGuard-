@@ -6,7 +6,7 @@ import type { GeoCoordinates } from '@/types';
 export type LocationPermissionState = 'prompt' | 'granted' | 'denied' | 'unsupported';
 
 export const LOCATION_PERMISSION_EXPLANATION =
-  'AirGuard AI uses your approximate location solely to fetch hyper-local air quality, pollutant levels, and weather forecasts for your area. Your coordinates are never stored for tracking or shared with third parties.';
+  'AeroPulse AI uses your approximate location solely to fetch hyper-local air quality, pollutant levels, and weather forecasts for your area. Your coordinates are never stored for tracking or shared with third parties.';
 
 export interface UseLocationOptions {
   enableHighAccuracy?: boolean;

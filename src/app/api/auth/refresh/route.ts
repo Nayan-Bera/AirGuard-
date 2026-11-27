@@ -7,7 +7,9 @@ export async function POST() {
   try {
     const { refreshToken } = await getTokensFromCookies();
     if (!refreshToken) {
-      return createErrorResponse(401, 'NO_REFRESH_TOKEN', 'Refresh token is missing.');
+      const response = createErrorResponse(401, 'NO_REFRESH_TOKEN', 'Refresh token is missing.');
+      clearSessionCookies(response);
+      return response;
     }
 
     const response = NextResponse.json({ refreshed: true }, { status: 200 });

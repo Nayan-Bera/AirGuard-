@@ -1,13 +1,16 @@
 import { NextResponse } from 'next/server';
 import { getTokensFromCookies } from '@/lib/auth/jwt';
-import { getAuthenticatedUser, rotateRefreshSession } from '@/lib/auth/session';
+import { clearSessionCookies, getAuthenticatedUser, rotateRefreshSession } from '@/lib/auth/session';
 import { handleUnexpectedRouteError } from '@/lib/api/route-utils';
 
 export async function GET() {
   try {
     const { user, refreshed } = await getAuthenticatedUser();
     if (!user) {
-      return NextResponse.json({ authenticated: false, user: null }, { status: 200 });
+      const response = NextResponse.json({ authenticated: false, user: null }, { status: 200 });
+      const { accessToken, refreshToken } = await getTokensFromCookies();
+      if (accessToken || refreshToken) clearSessionCookies(response);
+      return response;
     }
 
     const response = NextResponse.json({ authenticated: true, user }, { status: 200 });
